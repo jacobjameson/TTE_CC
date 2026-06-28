@@ -24,10 +24,16 @@ cat(sprintf("NAIVE (confounded) 24-wk RD=%.3f  RR=%.2f\n", naive$rd, naive$rr))
 ## --- 1. match to emulate randomization --------------------------------------
 matched <- match_cohort(vac_toy_obs, treat = "treat", covariates = conf)
 
-## --- 2. check covariate balance (cobalt) ------------------------------------
+## --- 2. check covariate balance (cobalt): table + love plot -----------------
 if (requireNamespace("cobalt", quietly = TRUE)) {
-  bt <- cobalt::bal.tab(attr(matched, "match"), un = TRUE)
-  print(bt)
+  print(cobalt::bal.tab(attr(matched, "match"), un = TRUE))
+  lp <- cobalt::love.plot(attr(matched, "match"), stats = "mean.diffs", abs = TRUE,
+                          thresholds = c(m = .1), var.order = "unadjusted",
+                          drop.distance = TRUE,
+                          sample.names = c("Before matching", "After matching"),
+                          colors = c("#E7B800", "#2E9FDF"),
+                          title = "Covariate balance: before vs. after matching")
+  ggplot2::ggsave(file.path(root, "examples", "02_loveplot.png"), lp, width = 7.5, height = 5, dpi = 150)
 }
 
 ## --- 3. estimate risks on the matched cohort (marginal) ---------------------

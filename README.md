@@ -80,10 +80,17 @@ boot_tte(vac_toy_random,
          R = 500, seed = 4237)
 ```
 
-Key functions: `pooled_logistic_risk()`, `km_risk()`, `point_effect()`, `match_cohort()`,
+Key functions: `check_person_time()` / `to_person_time()` (validate & build the required
+person-time format), `pooled_logistic_risk()`, `km_risk()`, `point_effect()`, `match_cohort()`,
 `seq_emulate()`, `ip_weights()`, `competing_events_transform()`, `clone_censor_weight()`,
 `boot_tte()`, `tte_riskplot()`. Each helper's method and provenance is documented in
 [`reference/fidelity.md`](reference/fidelity.md).
+
+### Data format
+TTE needs **long / person-time** data — one row per person per follow-up interval (integer `time` from
+0, one row per `id`×`time`, binary per-interval outcome). The skills check this *before* analysis;
+`check_person_time()` validates it and `to_person_time()` converts wide survival data into it. See
+[`reference/data-format.md`](reference/data-format.md).
 
 ---
 

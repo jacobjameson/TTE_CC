@@ -6,6 +6,8 @@ these are independent reimplementations of the same statistical procedure.)
 
 | Helper (`R/tte-helpers.R`) | Course source | What it reproduces |
 |---|---|---|
+| `check_person_time()` | data-format conventions | Validates long/person-time structure (one row per (id, time), integer time from 0, contiguous, binary outcome). See `reference/data-format.md`. |
+| `to_person_time()` | data-format conventions | Expands wide one-row-per-person survival data into long person-time (event in the final interval; admin-censored at K). |
 | `pooled_logistic_risk()` (marginal) | Session 1, 2 | Pooled logistic `hosp ~ A + time + time² + A:time + A:time²`; hazards → `cumprod(1−h)` → risk → RD/RR at K. |
 | `pooled_logistic_risk(covariates=)` | Session 4 | **Standardization / g-formula**: predict each baseline person under A=0/1 across follow-up, average survival, 1 − mean(S). |
 | `pooled_logistic_risk(weights=)` | Sessions 4–6 | IP-weighted pooled logistic (weights = stabilized IPTW × IPCW, truncated). |

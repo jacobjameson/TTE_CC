@@ -16,10 +16,26 @@ and the confounders/method from `emulate-randomization`. Read `reference/fidelit
 (Toolkit files — `reference/`, `R/` — live at the repo root, or `$TTE_CC_HOME` / `~/.tte_cc/` when
 installed via `install.sh`; set `tte_root` in generated scripts to that location.)
 
+## Step 0 — ALWAYS check the data format first (do not skip)
+TTE requires **long / person-time** data: one row per person per follow-up interval, integer `time`
+starting at 0, one row per (id, time), binary per-interval outcome. Read `reference/data-format.md`,
+then **validate before any modelling**:
+```r
+check_person_time(data, id = "id", time = "time", outcome = "hosp")   # errors on fatal problems
+```
+If the data are **wide** (one row per person with a survival time + event), convert first:
+```r
+long <- to_person_time(wide, id = "id", surv_time = "surv_time", event = "event",
+                       K = K, keep = <baseline covariates>)
+```
+For other shapes (one row per visit/claim), reshape to one row per person-interval at the time scale
+where covariates/treatment/outcomes change, then re-run `check_person_time()`. Never run the engine on
+data that hasn't passed this check. (A single outcome measured once per person is the exception — use
+`point_effect()`.)
+
 ## Inputs to confirm before writing code
-1. **Data**: path + that it is long/person-time (one row per person-interval) with `id`, a time
-   variable, treatment, outcome, covariates. If not long, help reshape (or, for a single outcome
-   measured once, that's fine — see below).
+1. **Data**: path + confirmed long/person-time (Step 0) with `id`, a time variable, treatment,
+   outcome, covariates.
 2. **Outcome type** (drives the engine):
    | Type | Helper | Estimand |
    |---|---|---|

@@ -11,6 +11,87 @@
 ## Dependencies (all used by the course itself): stats, survival, boot.
 ###############################################################################
 
+#' Validate that data are in long / person-time format (the format TTE requires)
+#'
+#' All of the estimation helpers assume **long (person-time)** data: one row per
+#' person per follow-up interval, with an integer `time` starting at 0, a binary
+#' per-interval `outcome`, and no duplicate (id, time) rows. This function checks
+#' those requirements and reports problems clearly — call it before analysis.
+#'
+#' @param data a data frame. @param id,time,outcome column names (outcome optional).
+#' @param stop_on_error if TRUE (default) raise an error on hard problems
+#'   (missing columns, duplicate person-intervals, non-integer/negative time);
+#'   otherwise return the findings quietly.
+#' @return invisibly a list with `ok` (logical) and `issues` (character vector).
+check_person_time <- function(data, id = "id", time = "time", outcome = NULL,
+                              stop_on_error = TRUE) {
+  issues <- character(0); hard <- character(0)
+  d <- as.data.frame(data)
+  for (col in c(id, time, outcome)) if (!is.null(col) && !col %in% names(d))
+    hard <- c(hard, sprintf("missing required column '%s'", col))
+  if (length(hard) == 0) {
+    tt <- d[[time]]
+    if (!is.numeric(tt) || any(tt != floor(tt), na.rm = TRUE))
+      hard <- c(hard, sprintf("'%s' must be integer-valued follow-up intervals", time))
+    if (any(tt < 0, na.rm = TRUE))
+      hard <- c(hard, sprintf("'%s' has negative values (must start at 0)", time))
+    if (min(tt, na.rm = TRUE) != 0)
+      issues <- c(issues, sprintf("'%s' does not start at 0 for some/all people", time))
+    dup <- duplicated(d[, c(id, time)])
+    if (any(dup)) hard <- c(hard, sprintf("%d duplicate (%s, %s) rows — must be one row per person-interval",
+                                          sum(dup), id, time))
+    # contiguity within person (gaps are usually a reshaping bug)
+    ord <- d[order(d[[id]], d[[time]]), ]
+    gap <- tapply(ord[[time]], ord[[id]], function(x) any(diff(x) != 1))
+    if (any(unlist(gap), na.rm = TRUE))
+      issues <- c(issues, "some people have gaps in follow-up time (non-contiguous intervals)")
+    if (!is.null(outcome)) {
+      ov <- d[[outcome]][!is.na(d[[outcome]])]
+      if (!all(ov %in% c(0, 1))) issues <- c(issues, sprintf("'%s' is not binary 0/1", outcome))
+    }
+  }
+  all_issues <- c(hard, issues); ok <- length(hard) == 0
+  if (length(all_issues)) {
+    msg <- paste0("Person-time format check:\n  - ", paste(all_issues, collapse = "\n  - "))
+    if (!ok && stop_on_error) stop(msg, call. = FALSE) else message(msg)
+  } else message(sprintf("Person-time format OK: %d people, %d person-intervals, time 0..%d.",
+                         length(unique(d[[id]])), nrow(d), max(d[[time]], na.rm = TRUE)))
+  invisible(list(ok = ok, issues = all_issues))
+}
+
+#' Convert WIDE (one row per person) survival data to long / person-time format
+#'
+#' Many datasets arrive with one row per person and a follow-up time + event
+#' indicator. This expands them into the long person-time format the engine needs:
+#' rows for intervals 0..(survival_time - 1), with the event flagged in the final
+#' interval (administratively censored at K).
+#'
+#' @param data wide data (one row per person).
+#' @param id person id; @param surv_time integer # of intervals observed (>= 1);
+#' @param event 0/1 event-by-end-of-followup indicator; @param K horizon cap (optional);
+#' @param keep character vector of (time-fixed) columns to carry forward.
+#' @return long person-time data with `id`, `time`, `timesqr`, kept columns, and
+#'   the per-interval outcome column named as `event`.
+to_person_time <- function(data, id = "id", surv_time = "surv_time", event = "event",
+                           K = NULL, keep = NULL) {
+  d <- as.data.frame(data)
+  if (is.null(K)) K <- max(d[[surv_time]], na.rm = TRUE)
+  parts <- lapply(seq_len(nrow(d)), function(i) {
+    n <- min(d[[surv_time]][i], K)
+    if (is.na(n) || n < 1) return(NULL)
+    wk <- 0:(n - 1)
+    truncated <- d[[surv_time]][i] > K
+    row <- data.frame(id = d[[id]][i], time = wk, timesqr = wk^2)
+    if (!is.null(keep)) for (col in keep) row[[col]] <- d[[col]][i]
+    row[[event]] <- as.integer(!truncated & d[[event]][i] == 1 & wk == (n - 1))
+    row
+  })
+  out <- do.call(rbind, parts[!vapply(parts, is.null, logical(1))])
+  names(out)[names(out) == "id"] <- id
+  rownames(out) <- NULL
+  out
+}
+
 #' Pooled logistic regression risk curves (the canonical engine)
 #'
 #' Fits a pooled logistic regression for the discrete-time hazard of a binary
