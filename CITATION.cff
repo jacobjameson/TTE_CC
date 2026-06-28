@@ -1,0 +1,47 @@
+cff-version: 1.2.0
+title: "TTE_CC: Claude Code skills for Target Trial Emulation"
+message: "If you use this toolkit, please cite it and the methodological sources below."
+type: software
+authors:
+  - given-names: Jacob
+    family-names: Jameson
+    affiliation: Harvard University
+repository-code: "https://github.com/jacobjameson/TTE_CC"
+license: MIT
+keywords:
+  - causal inference
+  - target trial emulation
+  - observational data
+  - Claude Code
+abstract: >
+  TTE_CC is a set of Claude Code skills and course-faithful R helpers for
+  performing target trial emulation in the style taught by the Harvard CAUSALab
+  Target Trial Emulation course. It is an independent, unaffiliated toolkit that
+  operationalizes the published target-trial-emulation framework; it does not
+  redistribute any course materials or data.
+references:
+  - type: book
+    title: "Causal Inference: What If"
+    authors:
+      - given-names: Miguel A.
+        family-names: Hernán
+      - given-names: James M.
+        family-names: Robins
+    year: 2020
+    publisher:
+      name: "Chapman & Hall/CRC"
+    url: "https://www.hsph.harvard.edu/miguel-hernan/causal-inference-book/"
+  - type: article
+    title: "Using Big Data to Emulate a Target Trial When a Randomized Trial Is Not Available"
+    authors:
+      - given-names: Miguel A.
+        family-names: Hernán
+      - given-names: James M.
+        family-names: Robins
+    journal: "American Journal of Epidemiology"
+    year: 2016
+    volume: 183
+    issue: 8
+    start: 758
+    end: 764
+    doi: "10.1093/aje/kwv254"

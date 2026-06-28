@@ -1,0 +1,14 @@
+# R
+.Rhistory
+.RData
+.Rproj.user/
+*.Rproj
+
+# macOS
+.DS_Store
+
+# generated example figures (regenerate from examples/)
+examples/*.png
+
+# large generated CSVs (the .rda + generator are the source of truth; regenerate CSVs as needed)
+data/*.csv
