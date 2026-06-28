@@ -74,9 +74,9 @@ use the time-to-event engine (which handles them via IPCW / competing-event tran
 | 3 | **Sequential trials** (`seq.em` stacking; ID-clustered bootstrap); the 3 wrong time-zero designs |
 | 4 | **Standardization (g-formula)** and **IP weighting** (stabilized, truncated); standardize over baseline period |
 | 5 | Loss-to-follow-up **IPCW**; competing events (total / composite / controlled-direct-effect) |
-| 6 | Time-varying confounding for sustained strategies; per-protocol; deviation censoring + time-varying IPW *(v2)* |
-| 7 | **Cloning** when strategies are indistinguishable at time zero + censoring + IPW *(v2)* |
-| 8 | **Grace periods** (natural vs. uniform weighting) *(v2)* |
+| 6 | Time-varying confounding for sustained strategies; per-protocol; deviation censoring + time-varying IPW |
+| 7 | **Cloning** when strategies are indistinguishable at time zero + censoring + IPW — `clone_censor_weight()` |
+| 8 | **Grace periods** (natural weighting) — `clone_censor_weight()` with `lo < hi` windows |
 
 ## Checking the emulation (Lecture 5)
 Cannot *verify* no-unmeasured-confounding — only *falsify*. Tools: **negative outcome / treatment /

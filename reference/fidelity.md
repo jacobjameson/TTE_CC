@@ -19,12 +19,13 @@ these are independent reimplementations of the same statistical procedure.)
 | `seq_emulate()` | Session 3 | `seq.em` stacking: one trial per eligible start; re-based `fu`, `id_new`, `period`; person-level bootstrap. |
 | `ip_weights()` | Sessions 4–5 | Stabilized IPTW + IPCW (cumulative product over time); 99th-pct truncation; adds `sw_a`/`sw_c`/`w`. |
 | `competing_events_transform()` | Session 5 / Lecture 7 | Total-effect (extend decedents, outcome-free) / composite / controlled-direct-effect (death as censoring) transforms. |
+| `clone_censor_weight()` | Sessions 7–8 | Cloning into two arms by second-dose window, deviation censoring (too-early / past-deadline), stabilized IP-of-censoring weights with time terms, grace-window handling (natural scheme), truncation. |
 
-## Planned for v2 (Sessions 6–8 machinery)
+## Planned for v2.x / future
 | Helper (planned) | Source | Reproduces |
 |---|---|---|
-| `clone_censor_weight()` | Sessions 7–8 | Cloning into strategies, deviation censoring, IP-of-censoring weights, grace periods (natural vs uniform). |
-| time-varying IPTW (sustained) | Session 6 | Per-interval treatment weights stratified by dose, treatment-confounder feedback. |
+| time-varying IPTW for distinguishable sustained strategies | Session 6 | Per-interval treatment weights stratified by dose with deviation censoring over follow-up. |
+| uniform grace-period weighting | Session 8 Part II | Uniform-distribution weight factors within the grace window (better-defined, transportable estimand). |
 
 ## Key constants the course uses
 - Horizon `K = 24` weeks; risks reported at interval `K-1` (end = week 24).

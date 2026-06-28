@@ -335,6 +335,88 @@ competing_events_transform <- function(data, outcome = "hosp", competing = "deat
   out[order(out[[id]], out[[time]]), , drop = FALSE]
 }
 
+#' Cloning–censoring–weighting for strategies indistinguishable at time zero
+#' (Sessions 7–8: sustained strategies + grace periods)
+#'
+#' When two sustained strategies share the same data at time zero (e.g. everyone
+#' gets a first dose at baseline; the strategies differ only in WHEN a second dose
+#' is taken), you cannot assign arms from baseline data without immortal-time bias.
+#' Instead: CLONE each person into both arms, CENSOR a clone when its observed data
+#' deviate from its assigned strategy, and IP-WEIGHT to undo the selection bias that
+#' censoring induces. Returns the cloned, weighted long data (arm 0 vs arm 1), ready
+#' for `pooled_logistic_risk(..., treat = "arm", weights = "w")`.
+#'
+#' Each arm is a window `c(lo, hi)` for the timing of the SECOND dose (the first is
+#' at baseline). Exact-timing strategies use lo == hi (Session 7); grace periods use
+#' lo < hi (Session 8). Deviation = second dose before `lo` (censor that week) or not
+#' received by `hi` (censor at hi + 1). During a grace window the within-window timing
+#' is not penalized ("natural" weighting).
+#'
+#' @param data long person-time data for INITIATORS (first dose at time 0).
+#' @param covariates time-varying + baseline confounders for the dose-timing model.
+#' @param arm0,arm1 numeric c(lo, hi) second-dose windows for the two strategies.
+#' @param treat per-interval dose indicator; @param outcome binary outcome.
+#' @param time,id columns; @param treat_cum_lag cumulative-dose-lagged column
+#'   (1 while the first—but not yet second—dose has been received).
+#' @param K horizon; @param stabilize stabilized weights; @param truncate weight quantile.
+#' @return cloned long data with `arm` (0/1), `w` (analysis weight), and `outcome`
+#'   set to NA on deviated (censored) person-time.
+clone_censor_weight <- function(data, covariates, arm0, arm1,
+                                treat = "treat", outcome = "hosp", time = "time",
+                                id = "id", treat_cum_lag = "treat_cum_lag1", K = NULL,
+                                stabilize = TRUE, truncate = 0.99) {
+  d <- as.data.frame(data); d <- d[order(d[[id]], d[[time]]), , drop = FALSE]
+  if (is.null(K)) K <- max(d[[time]]) + 1L
+
+  ## second-dose week per person (first dose is at time 0)
+  sdw_tab <- tapply(seq_len(nrow(d)), d[[id]], function(ix) {
+    tt <- d[[time]][ix]; aa <- d[[treat]][ix]
+    w <- tt[tt >= 1 & aa == 1]
+    if (length(w)) min(w) else NA_integer_
+  })
+
+  ## dose-timing model among decision person-weeks (first dose given, second not yet).
+  ## Time terms are always included (dose timing varies with follow-up week), matching
+  ## the course's use of calendar time in the weight models.
+  d$.t <- d[[time]]; d$.t2 <- d$.t^2
+  dec <- d[[treat_cum_lag]] == 1
+  den_terms <- c(covariates, ".t", ".t2")
+  fd <- stats::glm(stats::reformulate(den_terms, response = treat),
+                   family = stats::binomial("logit"), data = d[dec, , drop = FALSE])
+  pd <- stats::predict(fd, d, type = "response")
+  d$.pd <- ifelse(d[[treat]] == 1, pd, 1 - pd); d$.pd[!dec] <- 1
+  if (stabilize) {                                   # numerator: time only (stabilizes)
+    fn <- stats::glm(stats::reformulate(c(".t", ".t2"), response = treat),
+                     family = stats::binomial("logit"), data = d[dec, , drop = FALSE])
+    pn <- stats::predict(fn, d, type = "response")
+    d$.pn <- ifelse(d[[treat]] == 1, pn, 1 - pn); d$.pn[!dec] <- 1
+  } else d$.pn <- 1
+
+  make_arm <- function(win, a_idx) {
+    lo <- win[1]; hi <- win[2]
+    cl <- d; cl$arm <- a_idx
+    s <- sdw_tab[as.character(cl[[id]])]
+    cens_wk <- ifelse(!is.na(s) & s < lo, s,
+                ifelse(is.na(s) | s > hi, hi + 1L, NA_integer_))
+    cl[[outcome]][!is.na(cens_wk) & cl[[time]] >= cens_wk] <- NA          # deviation -> censor
+    if (hi > lo) {                                                        # grace: don't penalize within-window timing
+      ingrace <- cl[[time]] >= lo & cl[[time]] <= (hi - 1)
+      cl$.pd[ingrace] <- 1; cl$.pn[ingrace] <- 1
+    }
+    cl <- cl[order(cl[[id]], cl[[time]]), , drop = FALSE]
+    cl$w <- ave_cumprod(cl$.pn, cl[[id]]) / ave_cumprod(cl$.pd, cl[[id]])
+    cl
+  }
+
+  both <- rbind(make_arm(arm0, 0L), make_arm(arm1, 1L))
+  if (!is.null(truncate)) {
+    thr <- stats::quantile(both$w[!is.na(both[[outcome]])], truncate, na.rm = TRUE)
+    both$w <- pmin(both$w, thr)
+  }
+  both$.pd <- both$.pn <- both$.t <- both$.t2 <- NULL
+  both
+}
+
 #' Effect on a single (non-time-to-event) outcome — continuous or binary
 #'
 #' Target trial emulation is NOT limited to time-to-event outcomes. This helper

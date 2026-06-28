@@ -199,13 +199,99 @@ truth$obs$rd <- truth$obs$risk1 - truth$obs$risk0
 truth$obs$rr <- truth$obs$risk1 / truth$obs$risk0
 
 ## ---------------------------------------------------------------------------
+## 5b. TIME-VARYING dataset for SUSTAINED strategies / cloning (v2; Sessions 6-8)
+##     Every person initiates a FIRST dose at baseline (week 0). A SECOND dose is
+##     received at a later week whose timing is confounded by a time-varying
+##     symptom (symp): symptomatic weeks DELAY the 2nd dose AND raise the outcome
+##     hazard -> time-varying confounding. Two doses are more protective than one.
+##     Strategies of interest: "2nd dose by week w" for different w.
+## ---------------------------------------------------------------------------
+K_tv <- 12L
+g0 <- -3.0; g_dose2 <- -1.0; g_symp <- 0.9; g_sev <- 1.0   # outcome hazard
+hz_outcome <- function(cum2, symp, sev) plogis(g0 + g_dose2 * cum2 + g_symp * symp + g_sev * sev)
+p_symp0 <- function(sev) plogis(-1.0 + 0.8 * sev)
+p_symp  <- function(prev, sev) plogis(-1.4 + 1.6 * prev + 0.6 * sev)
+p_dose2 <- function(symp, k) plogis(-1.6 - 1.1 * symp + 0.15 * k)   # symptomatic -> delay
+
+sim_tv_person <- function(sev) {
+  symp <- integer(K_tv); cum <- integer(K_tv); treat <- integer(K_tv)
+  hosp <- integer(K_tv)
+  cum[1] <- 1L; treat[1] <- 1L                       # first dose at week 0 (index 1)
+  symp[1] <- rbinom(1, 1, p_symp0(sev))
+  got2 <- FALSE
+  evt <- NA_integer_
+  for (k in 2:K_tv) {                                # weeks 1..K_tv-1
+    symp[k] <- rbinom(1, 1, p_symp(symp[k - 1], sev))
+    cum[k] <- cum[k - 1]
+    if (!got2 && rbinom(1, 1, p_dose2(symp[k], k - 1)) == 1) {
+      treat[k] <- 1L; cum[k] <- 2L; got2 <- TRUE
+    }
+  }
+  for (k in 1:K_tv) {
+    if (is.na(evt) && rbinom(1, 1, hz_outcome(as.integer(cum[k] == 2), symp[k], sev)) == 1)
+      evt <- k - 1L
+  }
+  list(symp = symp, cum = cum, treat = treat, evt = evt)
+}
+
+n_tv <- 6000L
+b_tv <- draw_baseline(n_tv)
+sev_tv <- severity_lp(b_tv)
+tv_rows <- vector("list", n_tv)
+for (i in 1:n_tv) {
+  s <- sim_tv_person(sev_tv[i])
+  last <- min(c(s$evt, K_tv - 1L), na.rm = TRUE)
+  wk <- 0:last
+  d <- b_tv[rep(i, length(wk)), , drop = FALSE]
+  d$id <- i; d$time <- wk; d$timesqr <- wk^2
+  d$symp <- s$symp[wk + 1]
+  d$symp_lag1 <- c(0L, s$symp[wk + 1][-length(wk)])
+  d$treat <- s$treat[wk + 1]
+  d$treat_cum <- s$cum[wk + 1]
+  d$treat_cum_lag1 <- c(1L, s$cum[wk + 1][-length(wk)])
+  d$first_treat <- 0L
+  d$hosp <- as.integer(!is.na(s$evt) & wk == s$evt)
+  d$elig_2 <- 1L
+  tv_rows[[i]] <- d
+}
+vac_toy_tv <- do.call(rbind, tv_rows)
+vac_toy_tv <- vac_toy_tv[order(vac_toy_tv$id, vac_toy_tv$time),
+                         c("id","time","timesqr","age","age_cat","sex","race","urban",
+                           "baseline_risk","smoke","bmi","obese","diabetes","heartd","ckd",
+                           "liverd","cancer","pcp_visits","flu_vac","symp","symp_lag1",
+                           "treat","treat_cum","treat_cum_lag1","first_treat","elig_2","hosp")]
+rownames(vac_toy_tv) <- NULL
+
+## Monte-Carlo per-protocol truth: risk under "2nd dose exactly at week w"
+## (treat_cum = 1 for weeks 0..w-1, then 2), marginal over severity + symptom paths.
+true_risk_tv <- function(w, n_mc = 40000L) {
+  sev <- severity_lp(draw_baseline(n_mc))
+  alive <- rep(TRUE, n_mc); hit <- rep(FALSE, n_mc)
+  symp <- rbinom(n_mc, 1, p_symp0(sev))
+  for (k in 0:(K_tv - 1)) {
+    if (k > 0) symp <- rbinom(n_mc, 1, p_symp(symp, sev))
+    cum2 <- as.integer(k >= w)                       # 2nd dose has been received by week w
+    h <- hz_outcome(cum2, symp, sev)
+    new <- alive & !hit & (runif(n_mc) < h)
+    hit <- hit | new
+  }
+  mean(hit)
+}
+truth$tv <- list(K = K_tv,
+                 risk_w3 = true_risk_tv(3), risk_w5 = true_risk_tv(5))
+truth$tv$rd <- truth$tv$risk_w5 - truth$tv$risk_w3   # later 2nd dose - earlier 2nd dose
+truth$tv$rr <- truth$tv$risk_w5 / truth$tv$risk_w3
+
+## ---------------------------------------------------------------------------
 ## 6. Write outputs (csv + rda + truth)
 ## ---------------------------------------------------------------------------
 out_dir <- if (dir.exists("data")) "data" else "."
 write.csv(vac_toy_random, file.path(out_dir, "vac_toy_random.csv"), row.names = FALSE)
 write.csv(vac_toy_obs,    file.path(out_dir, "vac_toy_obs.csv"),    row.names = FALSE)
+write.csv(vac_toy_tv,     file.path(out_dir, "vac_toy_tv.csv"),     row.names = FALSE)
 save(vac_toy_random, file = file.path(out_dir, "vac_toy_random.rda"))
 save(vac_toy_obs,    file = file.path(out_dir, "vac_toy_obs.rda"))
+save(vac_toy_tv,     file = file.path(out_dir, "vac_toy_tv.rda"))
 saveRDS(truth,       file = file.path(out_dir, "toy_truth.rds"))
 
 cat("Toy data written to", normalizePath(out_dir), "\n")
@@ -215,3 +301,6 @@ cat(sprintf("RCT  : n=%d, person-weeks=%d | true risk1=%.4f risk0=%.4f RD=%.4f R
 cat(sprintf("OBS  : n=%d, person-weeks=%d | true risk1=%.4f risk0=%.4f RD=%.4f RR=%.3f\n",
             length(unique(vac_toy_obs$id)), nrow(vac_toy_obs),
             truth$obs$risk1, truth$obs$risk0, truth$obs$rd, truth$obs$rr))
+cat(sprintf("TV   : n=%d, person-weeks=%d | per-protocol truth: risk(2nd@wk3)=%.4f risk(2nd@wk5)=%.4f RD=%.4f\n",
+            length(unique(vac_toy_tv$id)), nrow(vac_toy_tv),
+            truth$tv$risk_w3, truth$tv$risk_w5, truth$tv$rd))

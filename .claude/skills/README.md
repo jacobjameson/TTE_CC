@@ -11,11 +11,12 @@ library (`../../reference/`).
 | Specify | `competing-events` | ✅ shipped |
 | Emulate | `emulate-randomization` | ✅ shipped |
 | Analyze | `tte-estimate` (rct · matching · standardize · ipw+ipcw · sequential · competing-events) | ✅ shipped |
+| Emulate | `sustained-strategies` | ✅ shipped (v2) |
 | Check | `check-emulation` | ✅ shipped |
 | Report | `tte-report` | ✅ shipped |
 
-v1 complete (course Sessions 1–5). v2 will add `sustained-strategies` and cloning / grace-period
-analysis (course Sessions 6–8).
+v1 (Sessions 1–5) and v2 (Sessions 6–8: sustained strategies, cloning, grace periods) complete —
+the full course is covered.
 
-Typical flow: **`target-trial` → `time-zero` → `emulate-randomization` → `tte-estimate`
-→ `check-emulation` → `tte-report`**.
+Typical flow: **`target-trial` → `time-zero` → (`emulate-randomization` and/or
+`sustained-strategies`) → `tte-estimate` → `check-emulation` → `tte-report`**.

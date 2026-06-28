@@ -63,6 +63,14 @@ installed via `install.sh`; set `tte_root` in generated scripts to that location
   over `period`; bootstrap at the **person** level (`boot_tte(..., id = "id")`).
 - **Competing events**: transform first with `competing_events_transform(d, estimand = ...)` (see the
   `competing-events` skill), then estimate as above.
+- **Cloning** (`mode = cloning`): for sustained strategies indistinguishable at time zero (see the
+  `sustained-strategies` skill), `clone_censor_weight()` clones into the two arms, censors deviators,
+  and builds the IP-of-censoring weights (exact timing: `lo == hi`; grace period: `lo < hi`); estimate
+  with `treat = "arm"`. Only the per-protocol effect is estimable under cloning.
+  ```r
+  both <- clone_censor_weight(d, covariates = conf, arm0 = c(lo0, hi0), arm1 = c(lo1, hi1), K = K)
+  pooled_logistic_risk(both[!is.na(both$hosp), ], treat = "arm", time = "time", K = K, weights = "w")
+  ```
 
 ## Inference (always)
 Wrap the chosen estimator in `boot_tte(data, statistic, R, seed)` — **resampling persons (ids)** —
@@ -81,8 +89,9 @@ For sequential-emulation data, resample at the person level (ID-clustered).
    balance, positivity) and remind that estimates are valid only under no-unmeasured-confounding.
 
 ## Scope note
-Supported now: modes **rct**, **matching**, **standardize**, **ipw** (with IPCW), **sequential**, and
-**competing-events** transforms, for time-to-event / continuous / binary outcomes. **Not yet
-implemented (v2):** cloning–censoring–weighting and grace periods (sustained strategies that are
-indistinguishable at time zero). When a request needs cloning/grace, generate as much as is supported
-and clearly flag the cloning step as not-yet-implemented rather than improvising fragile code.
+Supported modes: **rct**, **matching**, **standardize**, **ipw** (with IPCW), **sequential**,
+**competing-events** transforms, and **cloning** (exact-timing and grace-period sustained strategies),
+for time-to-event / continuous / binary outcomes. For distinguishable sustained strategies (Session 6)
+the time-varying-IPW-with-deviation-censoring path can be assembled from `ip_weights()` extended over
+follow-up; if a request needs a bespoke construction beyond the helpers, generate readable code from
+the course recipe in `reference/course-map.md` rather than guessing.

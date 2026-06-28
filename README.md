@@ -32,8 +32,9 @@ misaligned time zero — because in this framework *a good answer starts with a 
 
 ## Skills
 
-> **v1 covers the spine: course Sessions 1–5** (all seven skills below). Cloning, grace periods, and a
-> `sustained-strategies` skill (Sessions 6–8) are planned for v2.
+> **Covers the whole course (Sessions 1–8)**: specifying & emulating target trials, matching /
+> standardization / IP weighting, sequential trials, competing events, and sustained strategies via
+> cloning–censoring–weighting with grace periods.
 
 | Track | Skill | What it does |
 |-------|-------|--------------|
@@ -41,7 +42,8 @@ misaligned time zero — because in this framework *a good answer starts with a 
 | | `time-zero` | Aligns eligibility = assignment = start of follow-up; catches immortal-time designs; single vs. sequential trials. |
 | | `competing-events` | Forces an explicit estimand when death/competing events occur; flags the controlled-direct-effect trap. |
 | **B · Emulate** | `emulate-randomization` | Elicits the confounder set; picks the adjustment method. |
-| **C · Analyze** | `tte-estimate` | Generates readable, course-faithful R — modes: `rct`, `matching`, `standardize`, `ipw` (+ IPCW), `sequential`, competing-events. |
+| | `sustained-strategies` | Point vs sustained, static/dynamic, treatment-confounder feedback → g-methods, indistinguishable-at-t0 → cloning, grace periods. |
+| **C · Analyze** | `tte-estimate` | Generates readable, course-faithful R — modes: `rct`, `matching`, `standardize`, `ipw` (+ IPCW), `sequential`, competing-events, `cloning` (+ grace). |
 | **D · Check / Report** | `check-emulation` | Negative controls, balance, positivity — *"cannot verify, only falsify."* |
 | | `tte-report` | Write-up scaffold; keeps causal language out of the Results section. |
 
@@ -87,9 +89,11 @@ Every helper is mapped back to the exact hands-on session it derives from in
 ## Synthetic teaching data (`data/`)
 
 Because the course's datasets cannot be redistributed, TTE_CC ships its **own** fully-synthetic,
-VAC-like teaching data — a randomized trial (`vac_toy_random`) and a confounded observational study
-(`vac_toy_obs`) — in long/person-time weekly format over a 24-week horizon, built from a **known
-data-generating mechanism**. Because the truth is known, examples and tests verify that the
+VAC-like teaching data — a randomized trial (`vac_toy_random`), a confounded observational study
+(`vac_toy_obs`), and a time-varying-dose cohort (`vac_toy_tv`) for sustained-strategy / cloning
+analyses — in long/person-time weekly format, built from a **known data-generating mechanism**.
+Because the truth is known (including a Monte-Carlo per-protocol truth for the dose-timing
+strategies), examples and tests verify that the
 estimators recover it (and that a naïve observational analysis is visibly biased).
 
 ```r
@@ -132,7 +136,9 @@ Rscript examples/02_emulated_matching.R      # Session 2 — matching
 Rscript examples/03_sequential.R             # Session 3 — sequential (nested) trials
 Rscript examples/04_ipweighting.R            # Sessions 4-5 — IPTW (+ IPCW)
 Rscript examples/05_competing_events.R       # Session 5 — competing-event estimands
-Rscript -e 'testthat::test_dir("tests/testthat")'   # validate the engine (42 tests)
+Rscript examples/07_cloning.R                # Session 7 — cloning (exact timing)
+Rscript examples/08_grace_periods.R          # Session 8 — grace periods
+Rscript -e 'testthat::test_dir("tests/testthat")'   # validate the engine (50 tests)
 ```
 
 ---
