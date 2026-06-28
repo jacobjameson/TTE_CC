@@ -32,7 +32,7 @@ misaligned time zero — because in this framework *a good answer starts with a 
 
 ## Skills
 
-> **v1 (this release) covers the spine: course Sessions 1–5.** Cloning, grace periods, and the
+> **v1 covers the spine: course Sessions 1–5** (all seven skills below). Cloning, grace periods, and a
 > `sustained-strategies` skill (Sessions 6–8) are planned for v2.
 
 | Track | Skill | What it does |
@@ -41,12 +41,12 @@ misaligned time zero — because in this framework *a good answer starts with a 
 | | `time-zero` | Aligns eligibility = assignment = start of follow-up; catches immortal-time designs; single vs. sequential trials. |
 | | `competing-events` | Forces an explicit estimand when death/competing events occur; flags the controlled-direct-effect trap. |
 | **B · Emulate** | `emulate-randomization` | Elicits the confounder set; picks the adjustment method. |
-| **C · Analyze** | `tte-estimate` | Generates readable, course-faithful R (modes: `rct`, `matching`, `sequential-emulation`, `ip-weighting`). |
+| **C · Analyze** | `tte-estimate` | Generates readable, course-faithful R — modes: `rct`, `matching`, `standardize`, `ipw` (+ IPCW), `sequential`, competing-events. |
 | **D · Check / Report** | `check-emulation` | Negative controls, balance, positivity — *"cannot verify, only falsify."* |
 | | `tte-report` | Write-up scaffold; keeps causal language out of the Results section. |
 
-*(Skill definitions live under `.claude/skills/`. v1 ships the R engine + reference library + the
-specification skills first; analyze/check/report skills are wired to the helpers below.)*
+*(Skill definitions live under `.claude/skills/`; they call the R engine in `R/` and the reference
+library in `reference/`.)*
 
 ---
 
@@ -127,9 +127,12 @@ and `R/` files from the install location (`$TTE_CC_HOME`, default `~/.tte_cc`).
 Rscript -e 'install.packages(c("survival","MatchIt","cobalt","boot","ggplot2","data.table","testthat"))'
 
 Rscript data/make_toy_data.R                 # build the toy datasets
-Rscript examples/01_rct_effects.R            # worked example (Session 1, RCT)
-Rscript examples/02_emulated_matching.R      # worked example (Session 2, matching)
-Rscript -e 'testthat::test_dir("tests/testthat")'   # validate the engine
+Rscript examples/01_rct_effects.R            # Session 1 — RCT (KM + pooled logistic)
+Rscript examples/02_emulated_matching.R      # Session 2 — matching
+Rscript examples/03_sequential.R             # Session 3 — sequential (nested) trials
+Rscript examples/04_ipweighting.R            # Sessions 4-5 — IPTW (+ IPCW)
+Rscript examples/05_competing_events.R       # Session 5 — competing-event estimands
+Rscript -e 'testthat::test_dir("tests/testthat")'   # validate the engine (42 tests)
 ```
 
 ---

@@ -6,15 +6,16 @@ library (`../../reference/`).
 
 | Track | Skill | Status |
 |-------|-------|--------|
-| Specify | `target-trial` ⭐ | ✅ shipped (M2) |
-| Specify | `time-zero` | ✅ shipped (M2) |
-| Specify | `competing-events` | planned (M3) |
-| Emulate | `emulate-randomization` | ✅ shipped (M2) |
-| Analyze | `tte-estimate` (rct · matching · standardize ✓; sequential · ipw → M3) | ✅ shipped (M2, partial) |
-| Check | `check-emulation` | planned (M3) |
-| Report | `tte-report` | planned (M3) |
+| Specify | `target-trial` ⭐ | ✅ shipped |
+| Specify | `time-zero` | ✅ shipped |
+| Specify | `competing-events` | ✅ shipped |
+| Emulate | `emulate-randomization` | ✅ shipped |
+| Analyze | `tte-estimate` (rct · matching · standardize · ipw+ipcw · sequential · competing-events) | ✅ shipped |
+| Check | `check-emulation` | ✅ shipped |
+| Report | `tte-report` | ✅ shipped |
 
-v2 adds `sustained-strategies` and cloning / grace-period analysis (course Sessions 6–8).
+v1 complete (course Sessions 1–5). v2 will add `sustained-strategies` and cloning / grace-period
+analysis (course Sessions 6–8).
 
-Typical flow: **`target-trial` → `time-zero` → `emulate-randomization` → `tte-estimate`**
-(then `check-emulation` / `tte-report` when shipped).
+Typical flow: **`target-trial` → `time-zero` → `emulate-randomization` → `tte-estimate`
+→ `check-emulation` → `tte-report`**.

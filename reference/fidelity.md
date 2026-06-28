@@ -16,13 +16,15 @@ these are independent reimplementations of the same statistical procedure.)
 | `mean_diff()` | Session 1 | Continuous secondary outcome (titer) mean difference + 95% CI at end of follow-up (thin convenience wrapper). |
 | `tte_riskplot()` | Sessions 1–8 figures | House-style cumulative-incidence curves (palette `#E7B800` / `#2E9FDF`). |
 
-## Planned for v2 (Sessions 3–8 machinery)
+| `seq_emulate()` | Session 3 | `seq.em` stacking: one trial per eligible start; re-based `fu`, `id_new`, `period`; person-level bootstrap. |
+| `ip_weights()` | Sessions 4–5 | Stabilized IPTW + IPCW (cumulative product over time); 99th-pct truncation; adds `sw_a`/`sw_c`/`w`. |
+| `competing_events_transform()` | Session 5 / Lecture 7 | Total-effect (extend decedents, outcome-free) / composite / controlled-direct-effect (death as censoring) transforms. |
+
+## Planned for v2 (Sessions 6–8 machinery)
 | Helper (planned) | Source | Reproduces |
 |---|---|---|
-| `seq_emulate()` | Session 3–4 | `seq.em` stacking: per-trial baseline, re-based `time`, `id_new`, `period`; ID-clustered bootstrap. |
-| `ip_weights()` | Sessions 4–7 | Nonstabilized/stabilized IPTW + IPCW; cumulative products; truncation. |
 | `clone_censor_weight()` | Sessions 7–8 | Cloning into strategies, deviation censoring, IP-of-censoring weights, grace periods (natural vs uniform). |
-| `competing_events_transform()` | Session 5 | Total-effect / composite / controlled-direct-effect data transforms. |
+| time-varying IPTW (sustained) | Session 6 | Per-interval treatment weights stratified by dose, treatment-confounder feedback. |
 
 ## Key constants the course uses
 - Horizon `K = 24` weeks; risks reported at interval `K-1` (end = week 24).

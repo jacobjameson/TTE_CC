@@ -52,7 +52,10 @@ pooled_logistic_risk <- function(data, treat, outcome = "hosp", time = "time",
     fit <- model_fun(form, family = stats::binomial("logit"), data = d)
   } else {
     d[[".w"]] <- d[[weights]]
-    fit <- model_fun(form, family = stats::binomial("logit"), data = d, weights = d[[".w"]])
+    # weighted logistic emits a harmless "non-integer #successes" note; muffle it
+    fit <- withCallingHandlers(
+      model_fun(form, family = stats::binomial("logit"), data = d, weights = d[[".w"]]),
+      warning = function(w) if (grepl("non-integer", conditionMessage(w))) invokeRestart("muffleWarning"))
   }
 
   risk_curve <- function(a) {
@@ -171,6 +174,165 @@ match_cohort <- function(data, treat, covariates, id = "id", time = "time",
   out <- d[d[[id]] %in% matched_ids, , drop = FALSE]
   attr(out, "match") <- m
   out
+}
+
+#' Emulate a sequence of nested target trials (Session 3 `seq.em`)
+#'
+#' When individuals are eligible at multiple times, emulate a new trial starting at
+#' each eligible time and stack them. Each person may contribute to several trials
+#' (and to different arms), so downstream inference must resample at the PERSON level
+#' (the bootstrap in `boot_tte` already does this; use the original `id`).
+#'
+#' For each trial start t0 (a value of `time` at which someone is eligible), the
+#' trial includes everyone eligible at t0, followed for K intervals; follow-up time
+#' is re-based to the trial (`fu` = time - t0), and a per-trial id (`id_new`) is made.
+#'
+#' @param data long person-time data frame.
+#' @param elig name of the eligibility indicator (1 = eligible at that row's time).
+#' @param time calendar-time column (default "cal_time"). @param id person id.
+#' @param K horizon (intervals followed within each trial).
+#' @param starts trial start times (default: all `time` values with any eligible person).
+#' @return stacked long data with added columns `trial`, `fu`, `fu2`, `period`,
+#'   `periodsqr`, `id_new`, and a baseline treatment carried forward if `treat_b` exists.
+seq_emulate <- function(data, elig, time = "cal_time", id = "id", K = 24L, starts = NULL) {
+  d <- as.data.frame(data)
+  if (is.null(starts)) starts <- sort(unique(d[[time]][d[[elig]] == 1]))
+  parts <- lapply(starts, function(t0) {
+    elig_ids <- unique(d[[id]][d[[elig]] == 1 & d[[time]] == t0])
+    if (!length(elig_ids)) return(NULL)
+    tr <- d[d[[id]] %in% elig_ids & d[[time]] >= t0 & d[[time]] <= t0 + K - 1, , drop = FALSE]
+    tr$trial <- t0
+    tr$fu <- tr[[time]] - t0
+    tr$fu2 <- tr$fu^2
+    tr$period <- t0
+    tr$periodsqr <- t0^2
+    tr$id_new <- paste0(tr[[id]], "-", t0)
+    tr
+  })
+  out <- do.call(rbind, parts[!vapply(parts, is.null, logical(1))])
+  rownames(out) <- NULL
+  out
+}
+
+#' Inverse-probability weights for treatment and censoring (Sessions 4–5)
+#'
+#' Builds STABILIZED IP weights to emulate randomization for a baseline (point)
+#' treatment and, optionally, to correct for informative loss to follow-up
+#' (censoring). Returns the input data with weight columns added. Use the result
+#' with `pooled_logistic_risk(..., weights = "w")`.
+#'
+#'   treatment weight (time-fixed): sw_a = P(A=a) / P(A=a | L)               [Session 4]
+#'   censoring weight (time-varying): sw_c = ∏ P(C=0|A,t) / P(C=0|A,L,t)     [Session 5]
+#'   combined w = sw_a * sw_c, truncated at the `truncate` quantile.
+#'
+#' @param data long person-time data frame, ordered-able by id, time.
+#' @param treat baseline treatment column (0/1, time-fixed within id).
+#' @param covariates baseline confounders for the treatment model.
+#' @param id,time column names. @param K horizon.
+#' @param censor optional name of the censoring (loss-to-follow-up) indicator (1 = censored).
+#' @param censor_covariates confounders for the censoring model (defaults to `covariates`).
+#' @param stabilize use stabilized weights (default TRUE).
+#' @param truncate upper quantile at which to truncate the final weight (default 0.99; NULL = none).
+#' @return data with columns `sw_a` (and `sw_c`, `w`); `w` is the (truncated) analysis weight.
+ip_weights <- function(data, treat, covariates, id = "id", time = "time", K = 24L,
+                       censor = NULL, censor_covariates = NULL,
+                       stabilize = TRUE, truncate = 0.99) {
+  d <- as.data.frame(data)
+  d <- d[order(d[[id]], d[[time]]), , drop = FALSE]
+
+  ## --- treatment weight (time-fixed: one value per person) ---
+  base <- d[!duplicated(d[[id]]), , drop = FALSE]          # baseline row per id
+  ft <- stats::glm(stats::reformulate(covariates, response = treat),
+                   family = stats::binomial("logit"), data = base)
+  pd <- stats::predict(ft, base, type = "response")        # P(A=1 | L)
+  pn <- if (stabilize) mean(base[[treat]]) else 0.5        # P(A=1) (numerator)
+  a <- base[[treat]]
+  sw_a_id <- ifelse(a == 1, pn / pd, (1 - pn) / (1 - pd))
+  names(sw_a_id) <- base[[id]]
+  d$sw_a <- sw_a_id[as.character(d[[id]])]
+
+  ## --- censoring weight (time-varying cumulative product) ---
+  if (!is.null(censor)) {
+    cc <- if (is.null(censor_covariates)) covariates else censor_covariates
+    d$.unc <- as.integer(d[[censor]] == 0)
+    d$.t <- d[[time]]; d$.t2 <- d$.t^2
+    den_terms <- c(treat, cc, ".t", ".t2")
+    num_terms <- c(treat, ".t", ".t2")
+    fd <- stats::glm(stats::reformulate(den_terms, response = ".unc"),
+                     family = stats::binomial("logit"), data = d)
+    d$.pd <- stats::predict(fd, d, type = "response")      # P(C=0 | A, L, t)
+    if (stabilize) {
+      fn <- stats::glm(stats::reformulate(num_terms, response = ".unc"),
+                       family = stats::binomial("logit"), data = d)
+      d$.pn <- stats::predict(fn, d, type = "response")
+    } else d$.pn <- 1
+    # cumulative products within person
+    d$sw_c <- ave_cumprod(d$.pn, d[[id]]) / ave_cumprod(d$.pd, d[[id]])
+    d$w <- d$sw_a * d$sw_c
+    d$.unc <- d$.t <- d$.t2 <- d$.pd <- d$.pn <- NULL
+  } else {
+    d$w <- d$sw_a
+  }
+
+  if (!is.null(truncate)) {
+    thr <- stats::quantile(d$w, truncate, na.rm = TRUE)
+    d$w <- pmin(d$w, thr)
+  }
+  d
+}
+
+## internal: grouped cumulative product preserving row order
+ave_cumprod <- function(x, g) stats::ave(x, g, FUN = cumprod)
+
+#' Transform data to target a competing-events estimand (Session 5 / Lecture 7)
+#'
+#' Given a competing event (e.g. death), returns the long data shaped for one of
+#' three estimands, ready for `pooled_logistic_risk()`:
+#'   - "total"     : TOTAL effect ("eternally outcome-free"). Extend each decedent's
+#'                   follow-up to the horizon with outcome 0, so the competing event
+#'                   keeps them in the risk set as outcome-free thereafter.
+#'   - "composite" : composite outcome = event OR competing event.
+#'   - "controlled": CONTROLLED DIRECT effect — treat the competing event as
+#'                   censoring (drop rows at/after it). NB: ill-defined estimand;
+#'                   requires no unmeasured common causes of competing event & outcome.
+#'
+#' @param data long person-time data.
+#' @param outcome binary outcome column (default "hosp").
+#' @param competing competing-event indicator column (default "death").
+#' @param estimand one of "total","composite","controlled".
+#' @param id,time column names. @param K horizon (default max(time)+1).
+#' @return transformed long data frame (outcome redefined / rows added or dropped).
+competing_events_transform <- function(data, outcome = "hosp", competing = "death",
+                                       estimand = c("total", "composite", "controlled"),
+                                       id = "id", time = "time", K = NULL) {
+  estimand <- match.arg(estimand)
+  d <- as.data.frame(data); d <- d[order(d[[id]], d[[time]]), , drop = FALSE]
+  if (is.null(K)) K <- max(d[[time]]) + 1L
+
+  if (estimand == "composite") {
+    d[[outcome]] <- as.integer(d[[outcome]] == 1 | d[[competing]] == 1)
+    return(d)
+  }
+  if (estimand == "controlled") {
+    # censor at the competing event: keep rows strictly before it
+    keep <- stats::ave(d[[competing]], d[[id]], FUN = cumsum) == 0
+    return(d[keep, , drop = FALSE])
+  }
+  ## total effect: extend each decedent (who died before K-1, outcome-free) to K-1
+  dec <- d[d[[competing]] == 1, , drop = FALSE]
+  add <- lapply(seq_len(nrow(dec)), function(i) {
+    r <- dec[i, , drop = FALSE]
+    dt <- r[[time]]
+    if (dt >= K - 1) return(NULL)
+    ext <- r[rep(1, K - 1 - dt), , drop = FALSE]
+    ext[[time]] <- (dt + 1):(K - 1)
+    if ("timesqr" %in% names(ext)) ext$timesqr <- ext[[time]]^2
+    ext[[outcome]] <- 0L                 # eternally outcome-free after the competing event
+    ext
+  })
+  add <- do.call(rbind, add[!vapply(add, is.null, logical(1))])
+  out <- rbind(d, add)
+  out[order(out[[id]], out[[time]]), , drop = FALSE]
 }
 
 #' Effect on a single (non-time-to-event) outcome — continuous or binary

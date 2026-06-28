@@ -50,10 +50,19 @@ installed via `install.sh`; set `tte_root` in generated scripts to that location
   pooled_logistic_risk(d, "A", K = K, covariates = conf)
   point_effect(d, "A", "Y", type = "continuous", covariates = conf)
   ```
-- **IP weighting** (`mode = ipw`): build stabilized treatment (and, if needed, censoring) weights,
-  truncate, pass `weights =`. (The reusable `ip_weights()` helper is M3; for a point/baseline
-  treatment you may fit the weight model inline. If time-varying treatment/censoring is required,
-  say it's M3 and stop short.)
+- **IP weighting** (`mode = ipw`): `ip_weights()` builds stabilized treatment weights (and IPCW for
+  informative loss to follow-up via `censor =`), truncates, and adds a `w` column; then estimate with
+  `pooled_logistic_risk(..., weights = "w")` on uncensored (and, per the estimand, non-competing) rows.
+  ```r
+  w <- ip_weights(d, "A", covariates = conf, K = K, censor = "censor")
+  pooled_logistic_risk(w[w$censor == 0 & w$death == 0, ], "A", K = K, weights = "w")
+  ```
+- **Sequential emulation** (`mode = sequential`): when `time-zero` says people are eligible at
+  multiple times, `seq_emulate(d, elig = "elig", time = "cal_time", K = K)` stacks one trial per
+  eligible start (adds `trial`, `fu`, `period`, `id_new`); estimate with `time = "fu"` and standardize
+  over `period`; bootstrap at the **person** level (`boot_tte(..., id = "id")`).
+- **Competing events**: transform first with `competing_events_transform(d, estimand = ...)` (see the
+  `competing-events` skill), then estimate as above.
 
 ## Inference (always)
 Wrap the chosen estimator in `boot_tte(data, statistic, R, seed)` — **resampling persons (ids)** —
@@ -71,8 +80,9 @@ For sequential-emulation data, resample at the person level (ID-clustered).
 3. If the data are observational, recommend running `check-emulation` next (negative controls,
    balance, positivity) and remind that estimates are valid only under no-unmeasured-confounding.
 
-## M2 scope note
-`tte-estimate` ships modes **rct** and **matching** first (plus standardization via the engine's
-`covariates=`). Sequential emulation, time-varying IP weighting, competing-events transforms, and
-cloning/grace are M3+ — when a request needs them, generate as much as is supported and clearly flag
-the remaining step as not-yet-implemented rather than improvising fragile code.
+## Scope note
+Supported now: modes **rct**, **matching**, **standardize**, **ipw** (with IPCW), **sequential**, and
+**competing-events** transforms, for time-to-event / continuous / binary outcomes. **Not yet
+implemented (v2):** cloning–censoring–weighting and grace periods (sustained strategies that are
+indistinguishable at time zero). When a request needs cloning/grace, generate as much as is supported
+and clearly flag the cloning step as not-yet-implemented rather than improvising fragile code.
