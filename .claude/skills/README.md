@@ -1,19 +1,20 @@
-# Claude Code skills (built in milestones M2–M3)
+# Claude Code skills
 
-M1 (this commit) ships the foundation: the course-faithful R engine (`../../R/`), the reference
-library (`../../reference/`), the synthetic teaching data (`../../data/`), a worked example, and the
-test suite. The interactive skills are added next, each as its own folder here with a `SKILL.md`.
+Each skill is a folder with a `SKILL.md` (and any assets). Invoke in Claude Code by name,
+e.g. `/target-trial`. They build on the course-faithful R engine (`../../R/`) and reference
+library (`../../reference/`).
 
-Planned v1 skills (see `../../reference/course-map.md` for the methodology each enforces):
-
-| Track | Skill | Milestone |
-|-------|-------|-----------|
-| Specify | `target-trial` ⭐ | M2 |
-| Specify | `time-zero` | M2 |
-| Specify | `competing-events` | M3 |
-| Emulate | `emulate-randomization` | M2 |
-| Analyze | `tte-estimate` (rct · matching · sequential-emulation · ip-weighting) | M2–M3 |
-| Check | `check-emulation` | M3 |
-| Report | `tte-report` | M3 |
+| Track | Skill | Status |
+|-------|-------|--------|
+| Specify | `target-trial` ⭐ | ✅ shipped (M2) |
+| Specify | `time-zero` | ✅ shipped (M2) |
+| Specify | `competing-events` | planned (M3) |
+| Emulate | `emulate-randomization` | ✅ shipped (M2) |
+| Analyze | `tte-estimate` (rct · matching · standardize ✓; sequential · ipw → M3) | ✅ shipped (M2, partial) |
+| Check | `check-emulation` | planned (M3) |
+| Report | `tte-report` | planned (M3) |
 
 v2 adds `sustained-strategies` and cloning / grace-period analysis (course Sessions 6–8).
+
+Typical flow: **`target-trial` → `time-zero` → `emulate-randomization` → `tte-estimate`**
+(then `check-emulation` / `tte-report` when shipped).

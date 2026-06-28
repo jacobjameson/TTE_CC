@@ -11,7 +11,9 @@ these are independent reimplementations of the same statistical procedure.)
 | `pooled_logistic_risk(weights=)` | Sessions 4–6 | IP-weighted pooled logistic (weights = stabilized IPTW × IPCW, truncated). |
 | `km_risk()` | Session 1, 2 | `survfit(Surv(time, time+1, hosp) ~ A, conf.type="log-log")`; cumulative incidence = 1 − survival; risks at K. |
 | `boot_tte()` | Sessions 1–5 | Percentile bootstrap by **resampling persons (ids)**; the full pipeline is re-run inside `statistic`. |
-| `mean_diff()` | Session 1 | Continuous secondary outcome (titer) mean difference + 95% CI at end of follow-up. |
+| `point_effect()` | Session 1 (+ generalization) | Single non-time-to-event outcome: continuous → mean difference; binary → risk diff/ratio. Marginal, standardization (`covariates=`), or IPW (`weights=`) via g-computation. |
+| `match_cohort()` | Session 2 | 1:1 exact/coarsened matching (`MatchIt`) on baseline rows; returns long data for matched ids (+ MatchIt object). Estimate marginally afterward; bootstrap re-runs matching. |
+| `mean_diff()` | Session 1 | Continuous secondary outcome (titer) mean difference + 95% CI at end of follow-up (thin convenience wrapper). |
 | `tte_riskplot()` | Sessions 1–8 figures | House-style cumulative-incidence curves (palette `#E7B800` / `#2E9FDF`). |
 
 ## Planned for v2 (Sessions 3–8 machinery)

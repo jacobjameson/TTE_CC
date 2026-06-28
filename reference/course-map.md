@@ -54,6 +54,18 @@ adjustment*.
 - Nonparametric cross-check: Kaplan–Meier (`Surv(time, time+1, outcome)`, log-log CIs).
 - Continuous outcome: mean difference at end of follow-up.
 
+## Outcome types (the framework is outcome-agnostic)
+The target trial's "Outcomes" element is not restricted to time-to-event. Confounding adjustment
+(matching / standardization / IPW) is identical across types; only the outcome model + estimand change:
+| Outcome | Estimand | Engine |
+|---|---|---|
+| Time-to-event | risk difference/ratio over follow-up | `pooled_logistic_risk()` |
+| Single continuous (e.g. biomarker at K) | mean difference | `point_effect(type="continuous")` (linear + g-computation) |
+| Single binary (e.g. event-by-K yes/no) | risk difference/ratio | `point_effect(type="binary")` (logistic + g-computation) |
+The Specify skills capture the outcome type; `tte-estimate` dispatches to the right engine.
+NB: a single-binary "ever-by-K" estimand ignores censoring/competing events — with those present,
+use the time-to-event engine (which handles them via IPCW / competing-event transforms).
+
 ## Method progression (Sessions)
 | S | Adds |
 |---|------|

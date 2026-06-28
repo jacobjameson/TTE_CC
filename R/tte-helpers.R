@@ -146,7 +146,101 @@ boot_tte <- function(data, statistic, R = 500L, id = "id", conf = 0.95, seed = N
     row.names = NULL)
 }
 
-#' Convenience: continuous-outcome mean difference at end of follow-up (Session 1)
+#' Match a cohort on baseline covariates to emulate randomization (Session 2)
+#'
+#' Performs 1:1 matching (exact / coarsened-exact by default) on baseline rows and
+#' returns the long person-time data restricted to matched individuals. After
+#' matching, the matched cohort is approximately exchangeable, so downstream risk
+#' estimation can be run MARGINALLY (no further covariate adjustment).
+#'
+#' @param data long person-time data frame.
+#' @param treat baseline treatment column (0/1).
+#' @param covariates character vector of baseline covariates to match on.
+#' @param id,time column names. @param baseline_time the time index of baseline (default 0).
+#' @param method MatchIt method (default "nearest"); `exact` defaults to all covariates.
+#' @return long data frame restricted to matched ids (plus attribute "match" = MatchIt object).
+match_cohort <- function(data, treat, covariates, id = "id", time = "time",
+                         baseline_time = 0L, method = "nearest", exact = covariates) {
+  stopifnot(requireNamespace("MatchIt", quietly = TRUE))
+  d <- as.data.frame(data)
+  base <- d[d[[time]] == baseline_time, , drop = FALSE]
+  form <- stats::as.formula(paste(treat, "~", paste(covariates, collapse = " + ")))
+  m <- MatchIt::matchit(form, data = base, method = method,
+                        exact = stats::reformulate(exact))
+  matched_ids <- MatchIt::match.data(m)[[id]]
+  out <- d[d[[id]] %in% matched_ids, , drop = FALSE]
+  attr(out, "match") <- m
+  out
+}
+
+#' Effect on a single (non-time-to-event) outcome — continuous or binary
+#'
+#' Target trial emulation is NOT limited to time-to-event outcomes. This helper
+#' estimates the causal contrast for an outcome measured once per person (e.g. a
+#' continuous biomarker at end of follow-up, or a binary yes/no by end of
+#' follow-up), under the same confounding-adjustment options as the survival
+#' engine: marginal (RCT / matched data), standardization / g-computation over
+#' baseline covariates, or IP weighting.
+#'
+#' Estimand by type:
+#'   - "continuous": mean difference  E[Y|a=1] - E[Y|a=0]
+#'   - "binary":     risk difference and risk ratio  (P[Y=1|a=1] vs a=0)
+#'
+#' @param data long person-time OR person-level data frame.
+#' @param treat name of the (baseline) treatment column (0/1).
+#' @param outcome name of the outcome column.
+#' @param type "continuous" or "binary".
+#' @param reduce how to collapse long data to one row per person:
+#'   "at_time" (take the row at `at`, default for continuous, e.g. titer at K-1),
+#'   "ever" (max over follow-up = cumulative binary incidence; default for binary),
+#'   or "none" (data already has one row per person).
+#' @param at integer time index used when reduce = "at_time" (default K-1).
+#' @param id,time column names. @param K horizon.
+#' @param covariates baseline covariates to standardize over (g-computation). NULL = marginal.
+#' @param weights optional IP-weight column name.
+#' @return named list: for continuous `md`; for binary `risk0`,`risk1`,`rd`,`rr`; plus `model`.
+point_effect <- function(data, treat, outcome, type = c("continuous", "binary"),
+                         reduce = c("auto", "at_time", "ever", "none"),
+                         at = NULL, id = "id", time = "time", K = 24L,
+                         covariates = NULL, weights = NULL) {
+  type <- match.arg(type); reduce <- match.arg(reduce)
+  if (reduce == "auto") reduce <- if (type == "binary") "ever" else "at_time"
+  if (is.null(at)) at <- K - 1L
+  d <- as.data.frame(data)
+
+  # collapse to one row per person
+  if (reduce == "at_time") {
+    d <- d[d[[time]] == at, , drop = FALSE]
+  } else if (reduce == "ever") {
+    agg <- stats::aggregate(d[[outcome]], list(id = d[[id]]), max, na.rm = TRUE)
+    base <- d[d[[time]] == min(d[[time]]), , drop = FALSE]
+    base[[outcome]] <- agg$x[match(base[[id]], agg$id)]
+    d <- base
+  } # "none": leave as is
+
+  d[[".y"]] <- d[[outcome]]; d[[".a"]] <- d[[treat]]
+  fam <- if (type == "binary") stats::binomial("logit") else stats::gaussian()
+  rhs <- ".a"
+  if (!is.null(covariates)) rhs <- paste(rhs, "+", paste(covariates, collapse = " + "))
+  form <- stats::as.formula(paste0(".y ~ ", rhs))
+  w <- if (is.null(weights)) NULL else d[[weights]]
+  fit <- stats::glm(form, family = fam, data = d, weights = w)
+
+  # g-computation: predict everyone under a=0 and a=1, average
+  pred <- function(a) {
+    nd <- d; nd[[".a"]] <- a
+    p <- as.numeric(stats::predict(fit, nd, type = "response"))
+    if (is.null(weights)) mean(p) else stats::weighted.mean(p, d[[weights]])
+  }
+  m0 <- pred(0); m1 <- pred(1)
+  if (type == "binary")
+    list(risk0 = m0, risk1 = m1, rd = m1 - m0, rr = m1 / m0, model = fit)
+  else
+    list(mean0 = m0, mean1 = m1, md = m1 - m0, model = fit)
+}
+
+#' Convenience: continuous mean difference at end of follow-up (Session 1)
+#' Thin wrapper around point_effect(type = "continuous"); marginal by default.
 mean_diff <- function(data, treat, outcome = "titer", time = "time", K = 24L) {
   d <- as.data.frame(data)
   d <- d[d[[time]] == (K - 1), ]
