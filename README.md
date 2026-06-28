@@ -170,11 +170,7 @@ tests/            recover-the-truth + internal-consistency tests
 
 ## Acknowledgements
 
-The methodology implemented here is the target-trial-emulation framework from *Causal Inference: What
-If* (Hernán & Robins, 2020) and the broader literature. The toolkit is built to be faithful to how
-target trial emulation is taught by the Harvard CAUSALab; it is an independent reimplementation for
-educational and research use, **not affiliated with or endorsed by** Harvard or CAUSALab. All errors
-are the author's. To cite this toolkit, see [`CITATION.cff`](CITATION.cff).
+The methodology operationalized here was developed and taught by the Harvard CAUSALab Target Trial Emulation course (instructors Barbra A. Dickerman, Joy Shi, and Miguel A. Hernán) and is grounded in Causal Inference: What If (Hernán & Robins, 2020) and the target-trial-emulation literature. This toolkit is an independent reimplementation for educational and research use and is not affiliated with or endorsed by the course or its instructors. All errors are the author's. To cite this toolkit, see [`CITATION.cff`](CITATION.cff).
 
 ## License
 
