@@ -11,8 +11,9 @@ description: >
 
 In an emulated trial, "assignment" is not random — you recreate it by adjusting for confounders.
 This skill elicits the confounder set, picks an adjustment method, and stress-tests feasibility.
-Read `reference/course-map.md` and `reference/glossary.md` first. Key framing: adjustment can never
-be *verified* to be sufficient — only *falsified* (route to `check-emulation`).
+Read `reference/course-map.md` and `reference/glossary.md` first. (Toolkit files live at the repo
+root, or `$TTE_CC_HOME` / `~/.tte_cc/` when installed via `install.sh`.) Key framing: adjustment can
+never be *verified* to be sufficient — only *falsified* (route to `check-emulation`).
 
 ## 1. Elicit confounders with subject-matter reasoning
 A confounder is a pre-treatment common cause of treatment and outcome (identified by knowledge, not

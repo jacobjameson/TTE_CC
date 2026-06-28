@@ -15,8 +15,9 @@ hypothetical *pragmatic* randomized trial they would run to answer it. This is S
 trial emulation: *a causal question that cannot be written as a target trial is not well-defined.*
 
 Read `reference/course-map.md` and `reference/glossary.md` (the "push back" checklist) before you
-start, and follow them. Be collaborative but **rigorous and nitpicky** — your job is to catch
-design errors now, not after the analysis.
+start, and follow them. (Toolkit files — `reference/`, `R/`, assets — live at the repo root, or at
+`$TTE_CC_HOME` / `~/.tte_cc/` when installed via `install.sh`.) Be collaborative but **rigorous and
+nitpicky** — your job is to catch design errors now, not after the analysis.
 
 ## How to run the interview
 Work through the eight elements **in order**. For each: ask a focused question, restate what you

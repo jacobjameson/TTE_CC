@@ -98,18 +98,39 @@ Rscript data/make_toy_data.R   # regenerate (seeded); writes csv + rda + toy_tru
 
 ---
 
-## Install & run
+## Install the skills (Claude Code)
+
+One line in your terminal — downloads the toolkit to `~/.tte_cc` and links the skills so Claude Code
+can find them:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jacobjameson/TTE_CC/main/install.sh | bash
+```
+
+Then in Claude Code: `/target-trial` (or `/time-zero`, `/emulate-randomization`, `/tte-estimate`).
+
+Install into **the current project only** (instead of globally):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/jacobjameson/TTE_CC/main/install.sh | \
+  TTE_CC_SKILLS_DEST="$PWD/.claude/skills" bash
+```
+
+Prefer to do it by hand? `git clone https://github.com/jacobjameson/TTE_CC ~/.tte_cc` and link
+`~/.tte_cc/.claude/skills/*` into your `.claude/skills/`. The skills read the toolkit's `reference/`
+and `R/` files from the install location (`$TTE_CC_HOME`, default `~/.tte_cc`).
+
+## Run the R engine / examples
 
 ```bash
 # R deps used by v1: survival, MatchIt, cobalt, boot, ggplot2, data.table (+ testthat to test)
 Rscript -e 'install.packages(c("survival","MatchIt","cobalt","boot","ggplot2","data.table","testthat"))'
 
 Rscript data/make_toy_data.R                 # build the toy datasets
-Rscript examples/01_rct_effects.R            # worked example (Session 1)
+Rscript examples/01_rct_effects.R            # worked example (Session 1, RCT)
+Rscript examples/02_emulated_matching.R      # worked example (Session 2, matching)
 Rscript -e 'testthat::test_dir("tests/testthat")'   # validate the engine
 ```
-
-To use the **skills**, open this repo in Claude Code and invoke e.g. `/target-trial`.
 
 ---
 

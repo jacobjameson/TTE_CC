@@ -13,6 +13,8 @@ You generate **readable, course-faithful R** — never a black box — that esti
 causal contrast. Build on the protocol from `target-trial`, the alignment decision from `time-zero`,
 and the confounders/method from `emulate-randomization`. Read `reference/fidelity.md` and
 `reference/course-map.md` for the exact recipes, and `reference/variables.md` for data conventions.
+(Toolkit files — `reference/`, `R/` — live at the repo root, or `$TTE_CC_HOME` / `~/.tte_cc/` when
+installed via `install.sh`; set `tte_root` in generated scripts to that location.)
 
 ## Inputs to confirm before writing code
 1. **Data**: path + that it is long/person-time (one row per person-interval) with `id`, a time

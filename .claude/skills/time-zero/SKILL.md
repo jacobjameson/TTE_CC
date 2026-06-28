@@ -12,7 +12,8 @@ description: >
 Incorrect time-zero specification — not unmeasured confounding — is the most common, most fixable
 cause of failed observational analyses. Your job: make eligibility, treatment assignment, and start
 of follow-up **coincide** for every person, and choose how to handle people eligible at multiple
-times. Read `reference/glossary.md` and `reference/course-map.md` first.
+times. Read `reference/glossary.md` and `reference/course-map.md` first. (Toolkit files live at the
+repo root, or `$TTE_CC_HOME` / `~/.tte_cc/` when installed via `install.sh`.)
 
 ## The core rule
 > For each person, **time zero** is the single instant when (1) eligibility criteria are met,
